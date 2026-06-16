@@ -47,18 +47,8 @@ Grab the archive for your OS/arch from the
 [Releases page](https://github.com/AndersSol/zgx-cli/releases), unpack it, and put
 `zgx` on your `PATH`.
 
-**macOS:** the release binaries are not yet notarized, so Gatekeeper blocks
-them on first run (*"Apple could not verify zgx is free of malware"*). Clear the
-quarantine flag once, then run it:
-
-```sh
-xattr -d com.apple.quarantine ./zgx
-./zgx --version
-```
-
-Alternatively, after the block, go to **System Settings → Privacy & Security →
-Open Anyway**. Binaries you build yourself (`go install` / `go build`) are not
-quarantined and run without this step. (Notarized builds are planned.)
+**macOS:** the release binaries are signed with an Apple Developer ID and
+notarized, so they run out of the box — no Gatekeeper workaround needed.
 
 ### Install with Go
 
