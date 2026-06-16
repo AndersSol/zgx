@@ -16,6 +16,24 @@ builds:
     ldflags:
       - -s -w -X github.com/AndersSol/zgx-cli/cmd.version={{.Version}}
 
+# macOS code-signing + notarization, cross-platform via GoReleaser's embedded
+# quill — runs on the Linux runner, no Mac needed. Guarded by isEnvSet, so it is
+# a no-op (unsigned release) until the MACOS_* secrets are configured.
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids:
+        - zgx
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
+
 archives:
   - id: zgx
     ids:
