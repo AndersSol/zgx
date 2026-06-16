@@ -23,11 +23,17 @@
   .badges{margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
   .badge{font-family:var(--mono);font-size:.8rem;border:1px solid var(--border);
     border-radius:999px;padding:5px 12px;color:var(--muted);background:var(--panel)}
-  .cta{margin-top:32px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
   .btn{display:inline-block;padding:11px 22px;border-radius:8px;font-weight:600;
-    border:1px solid var(--border)}
+    border:1px solid var(--border);background:var(--panel);color:var(--fg)}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn.ghost{background:var(--panel);color:var(--fg)}
+  .dl{margin-top:32px}
+  .dl-grid{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .dl-grid .btn{min-width:150px}
+  .dl-grid .btn .os-ico{margin-right:8px}
+  .dl-grid .btn .arch{display:block;font-weight:400;font-size:.74rem;color:var(--muted);margin-top:2px}
+  .dl-grid .btn.primary .arch{color:rgba(255,255,255,.85)}
+  .dl-meta{margin-top:14px;font-size:.86rem;color:var(--muted)}
+  .dl-secondary{margin-top:14px}
   .notice{margin:28px auto 0;max-width:680px;background:rgba(210,153,34,.08);
     border:1px solid rgba(210,153,34,.4);border-radius:8px;padding:14px 18px;
     color:#e9d8a6;font-size:.92rem;text-align:left}
@@ -61,10 +67,24 @@
       <span class="badge">Linux · macOS · Windows</span>
       <span class="badge">MIT licensed</span>
     </div>
-    <div class="cta">
-      <a class="btn primary" href="https://github.com/AndersSol/zgx/releases">Download</a>
-      <a class="btn ghost" href="https://github.com/AndersSol/zgx">View on GitHub</a>
+
+    <div class="dl">
+      <div class="dl-grid" id="dl-grid">
+        <a class="btn" data-os="darwin" href="https://github.com/AndersSol/zgx/releases">
+          <span class="os-ico">🍎</span>macOS<span class="arch" data-arch>Apple Silicon</span></a>
+        <a class="btn" data-os="linux" href="https://github.com/AndersSol/zgx/releases">
+          <span class="os-ico">🐧</span>Linux<span class="arch" data-arch>x86-64</span></a>
+        <a class="btn" data-os="windows" href="https://github.com/AndersSol/zgx/releases">
+          <span class="os-ico">🪟</span>Windows<span class="arch" data-arch>x86-64</span></a>
+      </div>
+      <div class="dl-meta" id="dl-meta">
+        <a href="https://github.com/AndersSol/zgx/releases">All builds &amp; checksums →</a>
+      </div>
+      <div class="dl-secondary">
+        <a class="btn" href="https://github.com/AndersSol/zgx">View on GitHub</a>
+      </div>
     </div>
+
     <div class="notice">
       <b>Early / not yet hardware-verified.</b> Every command is implemented and
       unit-tested (race-clean) and the security-sensitive surface has been
@@ -96,7 +116,8 @@
 <section>
   <div class="wrap">
     <h2>Install</h2>
-    <pre># Download a binary from Releases, or install with Go:
+    <p style="color:var(--muted);margin-top:-8px">Download a binary above, or:</p>
+    <pre># Install with Go:
 go install github.com/AndersSol/zgx@latest
 
 # …or build from source (Go 1.26+):
@@ -170,5 +191,85 @@ zgx health zgx-ab12cd                      # verify connectivity</pre>
     Not affiliated with or endorsed by HP.
   </div>
 </footer>
+
+<script>
+// Point the OS download buttons at the matching asset from the most recent
+// GitHub release. Uses the /releases list (not /releases/latest) so it also
+// works while releases are marked pre-release. Falls back to the releases page
+// if the API is unavailable.
+(function () {
+  var REPO = "AndersSol/zgx";
+  var RELEASES = "https://github.com/" + REPO + "/releases";
+  var ARCH_LABEL = { amd64: "x86-64", arm64: "ARM64" };
+  var DEFAULT_ARCH = { darwin: "arm64", linux: "amd64", windows: "amd64" };
+
+  function detectOS() {
+    var ds = navigator.userAgentData && navigator.userAgentData.platform;
+    var p = (ds || navigator.platform || navigator.userAgent || "").toLowerCase();
+    if (p.indexOf("win") >= 0) return "windows";
+    if (p.indexOf("mac") >= 0 || p.indexOf("iphone") >= 0 || p.indexOf("ipad") >= 0) return "darwin";
+    if (p.indexOf("linux") >= 0 || p.indexOf("android") >= 0) return "linux";
+    return null;
+  }
+
+  function detectArch() {
+    return new Promise(function (resolve) {
+      var ua = navigator.userAgentData;
+      if (ua && ua.getHighEntropyValues) {
+        ua.getHighEntropyValues(["architecture"]).then(function (v) {
+          var a = (v.architecture || "").toLowerCase();
+          resolve(a.indexOf("arm") >= 0 ? "arm64" : (a ? "amd64" : null));
+        }).catch(function () { resolve(null); });
+      } else { resolve(null); }
+    });
+  }
+
+  function assetFor(assets, os, arch) {
+    function find(o, a) {
+      for (var i = 0; i < assets.length; i++) {
+        if (assets[i].name.indexOf("_" + o + "_" + a + ".") >= 0) return assets[i];
+      }
+      return null;
+    }
+    return find(os, arch) || find(os, DEFAULT_ARCH[os]);
+  }
+
+  var os = detectOS();
+
+  detectArch().then(function (detectedArch) {
+    fetch("https://api.github.com/repos/" + REPO + "/releases?per_page=1", {
+      headers: { Accept: "application/vnd.github+json" }
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (list) {
+        var rel = Array.isArray(list) ? list[0] : list;
+        if (!rel || !rel.assets || !rel.assets.length) return;
+
+        var meta = document.getElementById("dl-meta");
+        if (meta) {
+          meta.innerHTML = "Latest: <b>" + rel.tag_name +
+            "</b> · <a href=\"" + RELEASES + "\">all builds &amp; checksums →</a>";
+        }
+
+        ["darwin", "linux", "windows"].forEach(function (o) {
+          var btn = document.querySelector('[data-os="' + o + '"]');
+          if (!btn) return;
+          var arch = detectedArch || DEFAULT_ARCH[o];
+          var a = assetFor(rel.assets, o, arch);
+          if (a) {
+            // reflect the arch we actually matched
+            var matched = a.name.indexOf("_arm64.") >= 0 ? "arm64" : "amd64";
+            btn.href = a.browser_download_url;
+            btn.setAttribute("download", "");
+            var lbl = btn.querySelector("[data-arch]");
+            if (lbl) lbl.textContent = ARCH_LABEL[matched] + (o === "darwin" && matched === "arm64" ? " · Apple Silicon" : "");
+          }
+          if (o === os) btn.classList.add("primary");
+        });
+      })
+      .catch(function () { /* keep fallback hrefs pointing at the releases page */ });
+  });
+})();
+</script>
 </body>
 </html>
