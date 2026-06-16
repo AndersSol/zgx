@@ -9,14 +9,16 @@ workflows in HP's [ZGX-Toolkit](https://github.com/HPInc/ZGX-Toolkit) VS Code
 extension, rebuilt in Go as a self-contained binary. No VS Code, no Node
 runtime — just one executable that finds your device on the network, sets up
 SSH key access, installs a curated AI/ML stack, and wires up high-speed
-ConnectX networking between devices.
+ConnectX networking between devices. And because it's just commands, your own
+**AI coding agent** can drive it — see [Use it with your AI agent](#use-it-with-your-ai-agent).
 
-> **Status — early / not yet hardware-verified.** Every command is implemented
-> and unit-tested, the test suite is race-clean, and the security-sensitive
-> surface has been through a multi-agent security review. The flows have **not
-> yet been run end-to-end against a physical ZGX device.** Treat this as a
-> `v0.x` preview: review the commands it will run (it shows them before
-> executing) and use at your own risk until a hardware-verified release is cut.
+> **Status — hardware-verified, `v0.x`.** Discovery, SSH key setup, app install,
+> health checks and mDNS registration have all been run end-to-end against a real
+> NVIDIA DGX Spark (DGX OS 7.5). ConnectX pairing is implemented but still needs
+> two-device verification. The test suite is race-clean and the security-sensitive
+> surface went through a multi-agent security review. Still moving fast — it shows
+> every remote command before running it, and you should pin a release for
+> production use.
 
 ---
 
@@ -106,6 +108,30 @@ zgx health zgx-ab12cd
 
 After `connect`, the device is reachable as an SSH alias too:
 `ssh zgx-ab12cd`.
+
+---
+
+## Use it with your AI agent
+
+`zgx` is just commands, so your AI coding agent can drive your ZGX nano — no IDE
+lock-in. Drop in the agent skill and ask in plain language: the agent runs the
+read-only steps (`discover`, `health`, `verify`) itself and hands you the two
+password-gated commands (`connect`, `install`) to run.
+
+Built for **Claude Code** — the skill is plain Markdown, so any agent can read it:
+
+```sh
+mkdir -p ~/.claude/skills/zgx-cli
+curl -fsSL https://anderssol.github.io/zgx-cli/zgx-cli.skill.md \
+  -o ~/.claude/skills/zgx-cli/SKILL.md
+```
+
+Then say things like *"set up my ZGX nano for the first time"* or *"install the
+jupyter + ollama stack on spark-7f2a and verify it"*. The skill ships the exact
+command surface, the gotchas (the default user is `hp`, but a re-imaged DGX Spark
+uses the name you created at first boot), and self-checking recipes that were
+verified against real hardware and adversarially reviewed.
+[Read the skill →](docs/zgx-cli.skill.md)
 
 ---
 
